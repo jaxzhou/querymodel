@@ -1,0 +1,24 @@
+{
+  "name": "querymodel",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaxzhou/querymodel.git"
+  },
+  "keywords": [
+    "ORM",
+    "Query",
+    "QueryBuilder"
+  ],
+  "author": "JaxZhou",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jaxzhou/querymodel/issues"
+  },
+  "homepage": "https://github.com/jaxzhou/querymodel#readme"
+}
