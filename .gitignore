@@ -1,0 +1,8 @@
+.DS_Store
+.idea
+.vscode
+.history
+.jest_cache
+node_modules
+_build
+lib
