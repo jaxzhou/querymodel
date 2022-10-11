@@ -1,59 +1,48 @@
-import { isString } from "lodash";
+import { isString, union } from "lodash";
 import { COLUMN_META } from "./constants";
 import { BindTypeTransformer } from "./transformers";
 
 export type ColumnOptions = {
-  primary?: boolean;
-  nullable?: boolean;
-  length?: number;
-  comment?: string;
+  type?: string;
   source?: string;
 };
 
 export type ColumDefinition = {
-  type: string;
   name: string;
-  primary: boolean;
-  nullable: boolean;
-  length?: number;
+  alias: string;
+  type?: string;
   comment?: string;
 };
 
-export const Column = (
-  type: string,
-  opts?: ColumnOptions
-): PropertyDecorator => {
+type ColumnDecorator = (( name?: string ) => PropertyDecorator) | (( opts?: ColumnOptions ) => PropertyDecorator)| (( name?: string, opts?: ColumnOptions ) => PropertyDecorator);
+
+export const Column: ColumnDecorator = ( name?: string | ColumnOptions, opts?: ColumnOptions ): PropertyDecorator => {
   return (target, property) => {
     if (!isString(property)) {
       return;
     }
+    let definition: ColumDefinition = {
+      name: property,
+      alias: property,
+    };
+    let columnOpts: ColumnOptions = opts || {};
+    if (isString(name)) {
+      definition.name = name;
+    } else if (name) {
+      columnOpts = name;
+    }
+    definition = {
+      ...definition,
+      ...columnOpts,
+    }
     BindTypeTransformer(target, property);
-    const defaultDefinition: ColumDefinition = {
-      type,
-      name: property.toString(),
-      primary: false,
-      nullable: true,
-    };
-    const definition = {
-      ...defaultDefinition,
-      ...opts,
-    };
-    const propertyName = opts?.source ? `column:${opts.source}:${property}` : `column:${property}`;
-    Reflect.defineMetadata(COLUMN_META, definition, target.constructor, property);
-    Reflect.set(target.constructor, propertyName, definition);
+    const source = columnOpts.source || 'default';
+    const COLUMN_META_KEY = `${COLUMN_META}:${source}`;
+    const columns: string[] = Reflect.getMetadata(COLUMN_META_KEY, target) || [];
+    columns.push(property);
+    Reflect.defineMetadata(COLUMN_META_KEY, target, columns);
+    Reflect.defineMetadata(COLUMN_META_KEY, definition, target.constructor, property);
   };
-};
-
-export const getColumnDefinition = (
-  target: Object,
-  property: string | symbol
-): ColumDefinition => {
-  const definition: ColumDefinition = Reflect.getMetadata(
-    COLUMN_META,
-    target.constructor,
-    property
-  );
-  return definition;
 };
 
 export const getColumnDefinitions = (
@@ -63,34 +52,18 @@ export const getColumnDefinitions = (
   if (!target) {
     return [];
   }
-  const properties = Object.getOwnPropertyNames(target) || [];
-  const extendColumns = getColumnDefinitions(Object.getPrototypeOf(target), source) || [];
-  const ownColumns = properties
-    .filter(p => {
-      if (!p.startsWith('column:')) {
-        return false;
-      }
-      const names = p.split(':');
-      if (source) {
-        if (names.length > 2) {
-          return names[1] === source;
-        }
-        const exists = properties.find(a => {
-          const compos = a.split(':');
-          if (compos.length > 2) {
-            return compos[2] === names[1] && compos[1] === source;
-          }
-          return false;
-        });
-        if (exists) {
-          return false;
-        }
-      }
-      return true;
-    })
-    .map(property => Reflect.get(
-      target,
-      property
-    ));
-  return ownColumns.concat(extendColumns);
+  const columnDefinitions: ColumDefinition[] = [];
+  let columns: string[] = Reflect.getMetadata(`${COLUMN_META}:default`, target) || [];
+  if (source) {
+    const sourceColumns: string[] = Reflect.getMetadata(`${COLUMN_META}:${source}`, target) || [];
+    columns = union(columns, sourceColumns)
+  }
+  for (const c of columns) {
+    const definition: ColumDefinition | undefined = Reflect.getMetadata(`${COLUMN_META}:${source}`, target, c) || Reflect.getMetadata(`${COLUMN_META}:default`, target, c);
+    if (definition) {
+      columnDefinitions.push(definition);
+    }
+  }
+  const inheritColumns = getColumnDefinitions(target.prototype, source) || [];
+  return columnDefinitions.concat(inheritColumns);
 };

@@ -1,64 +1,68 @@
+
 export const aggRegex = /(min|max|avg|count|sum)\((.*)\)/i;
 export const fieldRegex = /^\w+[.]?\w+$/i;
 export type aggFunc = 'min'|'max'|'count'|'sum'|'avg';
 
 export type ColumnSelection = {
-  entityRef?: string;
-  column: string;
+  content: string;
   type?: string;
   alias?: string;
 }
 
-export type AggSelection = {
-  agg: aggFunc;
-  entityRef?: string;
-  column: string;
+export type FuncParamType = string | FuncSelection;
+
+export type FuncSelection = {
+  func: string;
+  params: FuncParamType[];
   alias?: string;
 }
 
-export type RawSelection = {
-  agg?: aggFunc;
-  rawString: string;
-  alias?: string;
-}
+export type Selection = ColumnSelection | FuncSelection;
 
-export type Selection = ColumnSelection | AggSelection | RawSelection;
-
-const convertToSelection = (agg: aggFunc, sqlOrField: string): Selection => {
-  if (fieldRegex.test(sqlOrField)) {
-    const components = sqlOrField.split('.');
-    return {
-      agg,
-      column: components[components.length - 1],
-      entityRef: components.length > 1 ? components.slice(0, components.length - 1).join('.') : undefined,
-    }
+const convertToSelection = (funcName: string, ...params: FuncParamType[]): FuncSelection => {
+  return {
+    func: funcName,
+    params,
   }
-  return  {
-    agg,
-    rawString: sqlOrField
-  };
 }
 
-export const select = (sqlOrField: string): Selection => {
-  if (fieldRegex.test(sqlOrField)) {
-    const components = sqlOrField.split('.');
-    return {
-      column: components[components.length - 1],
-      entityRef: components.length > 1 ? components.slice(0, components.length - 1).join('.') : undefined,
-    }
+export const select = (sqlOrField: string ): Selection => {
+  return {
+    content: sqlOrField
   }
-  return  {
-    rawString: sqlOrField
-  };
 }
 
-export const count = (sqlOrField: string): Selection => convertToSelection('count', sqlOrField);
+export const add = (...params: FuncParamType[]): FuncSelection => convertToSelection('add', ...params);
 
-export const sum = (sqlOrField: string): Selection => convertToSelection('sum', sqlOrField);
+export const subtract = (...params: FuncParamType[]): FuncSelection => convertToSelection('subtract', ...params);
 
-export const min = (sqlOrField: string): Selection => convertToSelection('min', sqlOrField);
+export const divide = (...params: FuncParamType[]): FuncSelection => convertToSelection('divide', ...params);
 
-export const max = (sqlOrField: string): Selection => convertToSelection('max', sqlOrField);
+export const multiply = (...params: FuncParamType[]): FuncSelection => convertToSelection('multiply', ...params);
 
-export const avg = (sqlOrField: string): Selection => convertToSelection('avg', sqlOrField);
+export const count = (param: FuncParamType): FuncSelection => convertToSelection('count', param);
 
+export const sum = (param: FuncParamType): FuncSelection => convertToSelection('sum', param);
+
+export const min = (param: FuncParamType): FuncSelection => convertToSelection('min', param);
+
+export const max = (param: FuncParamType): FuncSelection => convertToSelection('max', param);
+
+export const avg = (param: FuncParamType): FuncSelection => convertToSelection('avg', param);
+
+export const distinct = (...params: FuncParamType[]): FuncSelection => convertToSelection('distinct', ...params);
+
+export const count_if = (param: FuncParamType): FuncSelection => convertToSelection('count_if', param);
+
+export const null_if = (expression: FuncParamType, value: FuncParamType): FuncSelection => convertToSelection('null_if', expression, value);
+
+export const array_agg = (param: FuncParamType): FuncSelection => convertToSelection('array_agg', param);
+
+export const date = (param: FuncParamType, timezone?: string): FuncSelection => {
+  if (timezone) {
+    return convertToSelection('date', param, timezone);
+  }
+  return convertToSelection('date', param);
+};
+
+export const now = (): FuncSelection => convertToSelection('now');

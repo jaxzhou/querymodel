@@ -1,16 +1,11 @@
 import knex, {Knex} from "knex";
-import { cond, get, isArray, isNumber, isObject, isPlainObject } from 'lodash';
+import { get, isArray, isNumber, isPlainObject, isString } from 'lodash';
 import SqlTypeMapping from './sql_type_mapping';
 import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder, WriterBuilder } from "../querybuilder";
-import { ColumnSelection, Condition, FieldCondition, JoinType, RawCondition, Table, Selection } from "../schema";
-import { getColumnDefinitions, getSelectionDefinitions } from "../decorators";
+import { Condition, FieldCondition, JoinType, RawCondition, Table, Selection } from "../schema";
 
 function getFullTableName(table: Table): string {
   return table.schema ? `${table.schema}.${table.name}` : table.name;
-}
-
-function getFullColumnName(selection: ColumnSelection): string {
-  return selection.entityRef ? `${selection.entityRef}.${selection.column}` : selection.column;
 }
 
 export const paramRegex = /:[\w+_-]{1,}/g;
@@ -162,25 +157,23 @@ export default class SqlResolver {
     });
   }
 
-  protected convertField(field: string, params: {[key:string]: any}): {sql: string, bindings: any[], isAgg: boolean} {
-    const converted: {sql: string, bindings: any[], isAgg: boolean} = {
+  protected convertField(field: string, params: {[key:string]: any}): {sql: string, bindings: any[]} {
+    const converted: {sql: string, bindings: any[]} = {
       sql: field,
       bindings: [],
-      isAgg: false,
     }
     if (this.queryKeeper instanceof SelectQueryBuilder) {
       const selection = this.queryKeeper.queryStorage.selections.find(s => {
         if (s.alias) {
           return s.alias === field;
         }
-        if ('column' in s) {
-          return s.column === field;
+        if ('content' in s) {
+          return s.content === field;
         }
         return false;
       });
       if (selection) {
         converted.sql = this.convertSelection(selection);
-        converted.isAgg = 'agg' in selection && selection.agg != undefined;
       }
     }
     const matches = field.match(paramRegex);
@@ -193,7 +186,6 @@ export default class SqlResolver {
             return {
               sql: 'false',
               bindings: [],
-              isAgg: false
             };
           }
           converted.sql = converted.sql.replace(match, `(${paramValue.map(_ => '?').join(',')})`);
@@ -259,18 +251,17 @@ export default class SqlResolver {
   }
 
   protected convertSelection(selection: Selection): string {
-    if ('column' in selection) {
-      const columnName = getFullColumnName(selection);
-      let sql = columnName;
-      if ('agg' in selection) {
-        sql = `${selection.agg}(${columnName})`
+    if ('content' in selection) {
+      return selection.content;
+    }
+    const { func, params } = selection;
+    const converted = params.map((p) => {
+      if (isString(p)) {
+        return p;
       }
-      return sql;
-    }
-    let sql = selection.rawString;
-    if (selection.agg) {
-      sql = `${selection.agg}(${sql})`;
-    }
+      return this.convertSelection(p);
+    });
+    const sql = `${func}(${converted.join(',')})`;
     return sql;
   }
 
@@ -334,17 +325,12 @@ export default class SqlResolver {
         if (s.alias) {
           return s.alias === group;
         }
-        if ('column' in s) {
-          return s.column === group;
+        if ('content' in s) {
+          return s.content === group;
         }
         return false;
       });
-      if (selection && 'agg' in selection) {
-        const selectIndex = select.queryStorage.selections.indexOf(selection);
-        this.sqlBuilder.groupBy(selectIndex + 1);
-      } else if (selection && 'entityRef' in selection) {
-        this.sqlBuilder.groupBy(getFullColumnName(selection));
-      } else if (selection && 'rawString' in selection && /^\w+\(.*\)$/.test(selection.rawString)) {
+      if (selection && 'func' in selection) {
         const selectIndex = select.queryStorage.selections.indexOf(selection);
         this.sqlBuilder.groupBy(selectIndex + 1);
       } else {

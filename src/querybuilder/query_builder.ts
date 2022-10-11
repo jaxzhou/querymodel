@@ -3,12 +3,10 @@ import { QueryStorage } from "./storage";
 import {
   aggFunc,
   aggRegex,
-  AggSelection,
   ColumnSelection,
   Condition,
   fieldRegex,
   isConditionType,
-  RawSelection,
   Selection,
   stringToCondition,
   JoinType,
@@ -70,61 +68,13 @@ export class SelectQueryBuilder {
     }
   }
 
-  select(field: string | Selection | ColumDefinition, alias?: string): this {
-    if (isString(field)) {
-      if (fieldRegex.test(field)) {
-        const components = field.split('.');
-        const columnSelection: ColumnSelection = {
-          column: components[components.length - 1],
-          alias,
-        };
-        if (components.length > 1) {
-          columnSelection.entityRef = components[0];
-        }
-        this.queryStorage.selections.push(columnSelection);
-        return this;
-      } 
-      if (aggRegex.test(field)) {
-        const matches = field.match(aggRegex);
-        if (matches && matches.length > 2) {
-          const agg = matches[1] as aggFunc;
-          const selectField = matches[2];
-          if (fieldRegex.test(selectField)) {
-            const components = selectField.split('.');
-            const aggSelection: AggSelection = {
-              agg,
-              alias,
-              column: components[components.length - 1],
-            };
-            if (components.length > 1) {
-              aggSelection.entityRef = components[0];
-            }
-            this.queryStorage.selections.push(aggSelection);
-          } else {
-            const aggRawSelection: RawSelection = {
-              agg,
-              alias,
-              rawString: selectField
-            };
-            this.queryStorage.selections.push(aggRawSelection);
-          }
-          return this;
-        }
-      }
-      this.queryStorage.selections.push({
-        rawString: field,
-        alias,
-      });
-    } else if ('type' in field && 'name' in field) {
-      const components = field.name.split('.');
+  select(field: Selection | ColumDefinition, alias?: string): this {
+    if ('name' in field) {
       const column: ColumnSelection = {
-        column: components[components.length - 1],
+        content: field.name,
         type: field.type,
         alias,
       };
-      if (components.length > 1) {
-        column.entityRef = components[0];
-      }
       this.queryStorage.selections.push(column)
     } else {
       if (alias) {
@@ -191,7 +141,7 @@ export class SelectQueryBuilder {
       const subQuery = query(queryBuilder);
       const columns = getColumnDefinitions(target, this.sourceType);
       for  (const column of columns) {
-        subQuery.select(column.name);
+        subQuery.select(column);
       }
       const querySelections = getSelectionDefinitions(target, this.sourceType);
       for (const selection of querySelections) {
@@ -322,7 +272,7 @@ export class SelectQueryBuilder {
       const subQuery = query(queryBuilder);
       const columns = getColumnDefinitions(target, this.sourceType);
       for  (const column of columns) {
-        subQuery.select(column.name);
+        subQuery.select(column);
       }
       const querySelections = getSelectionDefinitions(target, this.sourceType);
       for (const selection of querySelections) {

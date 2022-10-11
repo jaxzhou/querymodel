@@ -7,6 +7,7 @@ import { getColumnDefinitions } from "../decorators/column";
 import { getSelectionDefinitions } from "../decorators/selection";
 import { getQueryDefinition } from "../decorators/query";
 import { get, isString } from 'lodash';
+import { count } from '../schema';
 
 export abstract class DataSource {
   protected runner: IQueryRunner;
@@ -83,7 +84,7 @@ export abstract class DataSource {
       selectBuilder.from(target, 'sub');
       selectBuilder.where({'sub': condition});
     }
-    selectBuilder.select('COUNT(*)', 'count');
+    selectBuilder.select(count('*'), 'count');
     const result: {count:number}[] = await this.runner.query(selectBuilder);
     return result[0]?.count ?? 0;
   }
