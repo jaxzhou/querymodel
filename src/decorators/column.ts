@@ -40,8 +40,8 @@ export const Column: ColumnDecorator = ( name?: string | ColumnOptions, opts?: C
     const COLUMN_META_KEY = `${COLUMN_META}:${source}`;
     const columns: string[] = Reflect.getMetadata(COLUMN_META_KEY, target) || [];
     columns.push(property);
-    Reflect.defineMetadata(COLUMN_META_KEY, target, columns);
-    Reflect.defineMetadata(COLUMN_META_KEY, definition, target.constructor, property);
+    Reflect.defineMetadata(COLUMN_META_KEY, columns, target);
+    Reflect.defineMetadata(COLUMN_META_KEY, definition, target, property);
   };
 };
 

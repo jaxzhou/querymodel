@@ -21,7 +21,7 @@ export const Select = (fieldName: string | Selection, opts?: SelectOptions): Pro
     const selectKeys: string[] = Reflect.getMetadata(SELECTION_META_KEY, target) || [];
     selectKeys.push(property);
     Reflect.defineMetadata(SELECTION_META_KEY, target, selectKeys);
-    Reflect.defineMetadata(SELECTION_META_KEY, selection, target.constructor, property);
+    Reflect.defineMetadata(SELECTION_META_KEY, selection, target, property);
   };
 };
 
