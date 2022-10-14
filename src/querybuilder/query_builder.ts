@@ -73,7 +73,7 @@ export class SelectQueryBuilder {
       const column: ColumnSelection = {
         content: field.name,
         type: field.type,
-        alias,
+        alias: alias || field.alias,
       };
       this.queryStorage.selections.push(column)
     } else {

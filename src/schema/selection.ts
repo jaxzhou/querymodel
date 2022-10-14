@@ -66,3 +66,5 @@ export const date = (param: FuncParamType, timezone?: string): FuncSelection => 
 };
 
 export const now = (): FuncSelection => convertToSelection('now');
+
+export const concat = (...params: FuncParamType[]): FuncSelection => convertToSelection('concat', ...params);

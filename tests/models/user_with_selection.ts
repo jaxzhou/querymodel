@@ -1,4 +1,5 @@
-import {Column, Entity} from '../../src/decorators'
+import {Column, Entity, Select} from '../../src/decorators'
+import { concat } from '../../src/schema';
 
 @Entity('user')
 export class User {
@@ -10,6 +11,9 @@ export class User {
 
   @Column('last_name')
   lastName: string;
+
+  @Select(concat('fist_name', 'last_name'))
+  fullName: string;
 
   @Column()
   age: number;
