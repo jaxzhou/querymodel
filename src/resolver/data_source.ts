@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { ClassType, Params, QueryCondition, QueryExpression, UpdateObject } from "./types";
+import { ClassType, QueryCondition, QueryExpression, UpdateObject } from "./types";
 import { ExecuteResult, IQueryRunner } from "./query_runner";
 import { getTableDefinition } from "../decorators/entity";
 import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder } from "../querybuilder";
@@ -14,12 +14,12 @@ export abstract class DataSource {
 
   protected sourceType: string;
 
-  async getOne<T>(target: ClassType<T>, condition: QueryExpression<T>, params?: Params<T> ): Promise<T|undefined> {
-    const values = await this.getMany<T>(target, condition, params);
+  async getOne<T>(target: ClassType<T>, condition: QueryExpression<T>): Promise<T|undefined> {
+    const values = await this.getMany<T>(target, condition);
     return values[0];
   }
 
-  async getMany<T>(target: ClassType<T>, condition: QueryExpression<T>, params?: Params<T>): Promise<T[]> {
+  async getMany<T>(target: ClassType<T>, condition: QueryExpression<T>): Promise<T[]> {
     const selectBuilder = new SelectQueryBuilder(this.sourceType);
     const table = getTableDefinition(target, this.sourceType);
     if (table) {
@@ -29,9 +29,6 @@ export abstract class DataSource {
       if (query) {
         query(selectBuilder);
       }
-    }
-    if (params) {
-      selectBuilder.bind(params);
     }
     if ('where' in condition) {
       selectBuilder.where(condition.where);
@@ -71,11 +68,8 @@ export abstract class DataSource {
     return values.map(t =>  plainToInstance(target, t));
   }
 
-  async getCount<T>(target: ClassType<T>, condition: QueryCondition<T>, params?: Params<T>): Promise<number> {
+  async getCount<T>(target: ClassType<T>, condition: QueryCondition<T>): Promise<number> {
     const selectBuilder = new SelectQueryBuilder(this.sourceType);
-    if (params) {
-      selectBuilder.bind(params);
-    }
     const table = getTableDefinition(target, this.sourceType);
     if (table) {
       selectBuilder.from(target);
@@ -89,9 +83,9 @@ export abstract class DataSource {
     return result[0]?.count ?? 0;
   }
 
-  async delete<T>(target: ClassType<T>, condition: QueryCondition<T>, params?: Params<T>): Promise<ExecuteResult> {
+  async delete<T>(target: ClassType<T>, condition: QueryCondition<T>): Promise<ExecuteResult> {
     const deleteBuilder = new DeleteQueryBuilder(this.sourceType, target);
-    deleteBuilder.where(condition, params);
+    deleteBuilder.where(condition);
     return this.runner.execute(deleteBuilder);
   }
 
@@ -101,9 +95,9 @@ export abstract class DataSource {
     return this.runner.execute(insertBuilder);
   }
 
-  async update<T>(target: ClassType<T>, updateFields: UpdateObject<T>, condition: QueryCondition<T>, params?: Params<T>): Promise<ExecuteResult> {
+  async update<T>(target: ClassType<T>, updateFields: UpdateObject<T>, condition: QueryCondition<T>): Promise<ExecuteResult> {
     const updateBuilder = new UpdateQueryBuilder(this.sourceType, target);
-    updateBuilder.where(condition, params);
+    updateBuilder.where(condition);
     updateBuilder.set(updateFields);
     return this.runner.execute(updateBuilder);
   }

@@ -2,7 +2,7 @@ import knex, {Knex} from "knex";
 import { get, isArray, isNumber, isPlainObject, isString } from 'lodash';
 import SqlTypeMapping from './sql_type_mapping';
 import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder, WriterBuilder } from "../querybuilder";
-import { Condition, FieldCondition, JoinType, RawCondition, Table, Selection } from "../schema";
+import { Condition, FieldCondition, JoinType, Table, Selection, isBasicDataType, FiledExpression } from "../schema";
 
 function getFullTableName(table: Table): string {
   return table.schema ? `${table.schema}.${table.name}` : table.name;
@@ -199,44 +199,31 @@ export default class SqlResolver {
     return converted;
   }
 
-  protected resolveCondition(condition: FieldCondition | RawCondition, params: {[key:string]: any}): Knex.Raw {
-    if ('rawString' in condition) {
-      let rawSql = condition.rawString;
-      const matches = rawSql.match(paramRegex) || [];
-      const bindings = [];
-      for (const match of matches) {
-        const n = match.replace(':', '');
-        const v = params[n];
-        if (v === undefined) {
-          continue;
-        }
-        if (isArray(v)) {
-          if (!v.length) {
-            rawSql = 'false';
-          } else {
-            rawSql = rawSql.replace(match, `(${v.map( _ => '?').join(',')})`);
-            bindings.push(...v);
-          }
-        } else {
-          rawSql = rawSql.replace(match, '?');
-          bindings.push(v);
-        }
-      }
-      return this.knex.raw(rawSql, bindings);
-    }
+  protected resolveCondition(condition: FieldCondition, params: {[key:string]: any}): Knex.Raw {
     const {
-      fieldsOrParams,
-      operator,
-      not
+      field,
+      expression
     } = condition;
-    const field1 = this.convertField(fieldsOrParams[0], params);
-    const field2 = this.convertField(fieldsOrParams[1], params);
-    if (field1.sql === 'false' || field2.sql === 'false') {
-      return this.knex.raw('false');
+    const expressionRaw = this.resolveConditionExpression(expression);
+    const expressionSql = expressionRaw.toSQL();
+    return this.knex.raw(`${field} ${expressionSql.sql}`, expressionSql.bindings);
+  }
+
+  protected resolveConditionExpression(expression: FiledExpression): Knex.Raw {
+    if (isBasicDataType(expression)) {
+      return this.knex.raw(`= :value`, {value: expression});
     }
-    const rawSql = `${field1.sql}${not ?  ' NOT': ''} ${operator} ${field2.sql}`;
-    const bindings = [...field1.bindings, ...field2.bindings];
-    return this.knex.raw(rawSql, bindings);
+    if (isArray(expression)) {
+      if (expression.length === 0) {
+        return this.knex.raw('false');
+      }
+      const rawSql = `IN (${expression.map(_ => '?').join(',')})`
+      return this.knex.raw(rawSql, expression);
+    }
+    const {operator, value} = expression;
+    const subRaw = this.resolveConditionExpression(value);
+    const subSql = subRaw.toSQL();
+    return this.knex.raw(`${operator} ${subSql.sql}`, subSql.bindings);
   }
 
   protected resolveSelections(select: SelectQueryBuilder) {

@@ -1,6 +1,6 @@
 import { assign, assignIn, clone, isArray, isString } from "lodash";
 import { getTableDefinition } from "../decorators/entity";
-import { Condition, isConditionType, objectToCondition, stringToCondition } from "../schema";
+import { Condition, isConditionType, ObjectConditionType, objectToCondition } from "../schema";
 import { DeleteStorage, InsertStorage, UpdateStorage } from "./storage";
 
 export class WriterBuilder {
@@ -43,16 +43,13 @@ export class WriterBuilder {
     }
   }
 
-  where(condition: string
-    | { [key: string]: any }
+  where(condition: ObjectConditionType<any>
     | Condition,
     params?: { [key: string]: any }): this {
     if (params) {
       assignIn(this.queryStorage.params, params);
     }
-    if (isString(condition)) {
-      this.queryStorage.conditions.conditions.push(stringToCondition(condition));
-    } else if (isConditionType(condition)) {
+    if (isConditionType(condition)) {
       if ('type' in condition && !this.queryStorage.conditions.conditions.length) {
         this._queryStorage.conditions = condition;
       } else {
@@ -60,17 +57,14 @@ export class WriterBuilder {
       }
     } else {
       const converted = objectToCondition(condition);
-      if (converted.params) {
-        assignIn(this.queryStorage.params, converted.params);
-      }
       if (!this.queryStorage.conditions.conditions.length) {
-        this._queryStorage.conditions = converted.condition;
+        this._queryStorage.conditions = converted;
       } else {
-        this.queryStorage.conditions.conditions.push(converted.condition);
+        this.queryStorage.conditions.conditions.push(converted);
       }
     }
     if (params) {
-        assignIn(this.queryStorage.params, params);
+      assignIn(this.queryStorage.params, params);
     }
     return this;
   }

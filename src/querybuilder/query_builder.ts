@@ -1,18 +1,16 @@
-import { assignIn, clone, find, isArray, isString } from "lodash";
+import { assignIn, clone, find, isArray, isPlainObject, isString } from "lodash";
 import { QueryStorage } from "./storage";
 import {
-  aggFunc,
-  aggRegex,
   ColumnSelection,
   Condition,
-  fieldRegex,
-  isConditionType,
   Selection,
-  stringToCondition,
   JoinType,
   Joins,
   Order,
   Nulls,
+  ObjectConditionType,
+  objectToCondition,
+  isConditionType,
 } from "../schema";
 import { getTableDefinition } from "../decorators/entity";
 import { getQueryDefinition } from "../decorators/query";
@@ -163,99 +161,84 @@ export class SelectQueryBuilder {
     return this;
   }
 
-  where(condition: string
-    | { [key: string]: any }
+  where(condition: ObjectConditionType<any>
     | Condition,
     params?: { [key: string]: any }): this {
     if (params) {
       assignIn(this.queryStorage.params, params);
     }
-    if (typeof condition === 'string') {
-      const exp = stringToCondition(condition);
-      if (exp) {
-        this.queryStorage.conditions.conditions.push(exp);
-      }
-    } else if (isConditionType(condition)) {
-      if ('type' in condition && !this.queryStorage.conditions.conditions.length) {
+    if (isConditionType(condition)) {
+      if (!this.queryStorage.conditions.conditions.length && 'type' in condition) {
         this.queryStorage.conditions = condition;
       } else {
         this.queryStorage.conditions.conditions.push(condition);
       }
     } else {
-      Object.keys(condition).forEach((field) => {
-        const sub = this.queryStorage.subQueries.find(s => s.alias === field);
-        const fieldValue = condition[field];
-        if (sub) {
-          sub.subBuilder.where(fieldValue);
-          return;
-        }
-        const fieldName = field.replace('.', '_');
-        this.queryStorage.params[fieldName] = fieldValue;
-        this.queryStorage.conditions.conditions.push({
-          fieldsOrParams: [field, `:${fieldName}`],
-          operator: isArray(fieldValue) ? 'in' : '='
-        });
-      });
+      if (!this.queryStorage.conditions.conditions.length) {
+        this.queryStorage.conditions = objectToCondition(condition);
+      } else {
+        this.queryStorage.conditions.conditions.push(objectToCondition(condition));
+      }
     }
     return this;
   }
 
-  join(target: Function, alias: string, condition: string): this
+  join(target: Function, alias: string, condition: ObjectConditionType<any>): this
 
   join(target: Function, alias: string, condition: Condition): this
 
-  join(target: Function, alias: string, condition: string | Condition): this {
+  join(target: Function, alias: string, condition: ObjectConditionType<any> | Condition): this {
     this.joinEntity(JoinType.innerJoin, target, alias, condition);
     return this;
   }
 
-  leftJoin(target: Function, alias: string, condition:string): this
+  leftJoin(target: Function, alias: string, condition: ObjectConditionType<any>): this
 
   leftJoin(target: Function, alias: string, condition: Condition): this
 
-  leftJoin(target: Function, alias: string, condition: string|Condition): this {
+  leftJoin(target: Function, alias: string, condition: ObjectConditionType<any> | Condition): this {
     this.joinEntity(JoinType.leftJoin, target, alias, condition);
     return this;
   }
 
-  rightJoin(target: Function, alias: string, condition:string): this
+  rightJoin(target: Function, alias: string, condition: ObjectConditionType<any>): this
 
   rightJoin(target: Function, alias: string, condition: Condition): this
 
-  rightJoin(target: Function, alias: string, condition: string|Condition): this {
+  rightJoin(target: Function, alias: string, condition: ObjectConditionType<any> | Condition): this {
     this.joinEntity(JoinType.rightJoin, target, alias, condition);
     return this;
   }
 
-  innerJoin(target: Function, alias: string, condition:string): this
+  innerJoin(target: Function, alias: string, condition: ObjectConditionType<any>): this
 
   innerJoin(target: Function, alias: string, condition: Condition): this
 
-  innerJoin(target: Function, alias: string, condition: string|Condition): this {
+  innerJoin(target: Function, alias: string, condition: ObjectConditionType<any> | Condition): this {
     this.joinEntity(JoinType.innerJoin, target, alias, condition);
     return this;
   }
 
-  fullJoin(target: Function, alias: string, condition:string): this
+  fullJoin(target: Function, alias: string, condition: ObjectConditionType<any>): this
 
   fullJoin(target: Function, alias: string, condition: Condition): this
 
-  fullJoin(target: Function, alias: string, condition: string|Condition): this {
+  fullJoin(target: Function, alias: string, condition: ObjectConditionType<any> | Condition): this {
     this.joinEntity(JoinType.fullJoin, target, alias, condition);
     return this;
   }
 
-  outerJoin(target: Function, alias: string, condition:string): this
+  outerJoin(target: Function, alias: string, condition: ObjectConditionType<any>): this
 
   outerJoin(target: Function, alias: string, condition: Condition): this
 
-  outerJoin(target: Function, alias: string, condition: string|Condition): this {
+  outerJoin(target: Function, alias: string, condition: ObjectConditionType<any> | Condition): this {
     this.joinEntity(JoinType.outerJoin, target, alias, condition);
     return this;
   }
 
-  protected joinEntity(type: JoinType, target: Function, alias: string, condition: string|Condition) {
-    const joinCondition = isString(condition) ? stringToCondition(condition) : condition;
+  protected joinEntity(type: JoinType, target: Function, alias: string, condition: ObjectConditionType<any> | Condition) {
+    const joinCondition = isConditionType(condition) ? condition : objectToCondition(condition);
     const join: Joins = {
       alias,
       type,

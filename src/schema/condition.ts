@@ -1,5 +1,10 @@
-import exp from "constants";
-import { isArray, isFunction, isObject } from "lodash";
+import { get, isBoolean, isDate, isNumber, isPlainObject, isString } from "lodash";
+
+export type BasicDataType = string | number | boolean | Date;
+
+export function isBasicDataType(value: any): value is BasicDataType {
+  return isString(value) || isNumber(value) || isBoolean(value) || isDate(value);
+}
 
 export const operationExp = /(.*)\s(=|<|<=|>|>=|<>|LIKE|ILIKE|IN|IS)\s(.*)/i;
 export const conditonRegexp = /^\w+(\snot)?\s(=|<|<=|>|>=|<>|LIKE|ILIKE|IN|IS)\s\w+/i;
@@ -10,123 +15,108 @@ export type Operator =
   | "<="
   | "="
   | "<>"
-  | "ilike"
+  | "between"
   | "like"
-  | "in"
-  | "any"
-  | "isNull"
-  | 'unknown';
+  | "ilike"
+  | "in";
+
+export type FiledExpression = BasicDataType | Array<BasicDataType> | {
+  operator: Operator;
+  value: FiledExpression;
+}
 
 export type FieldCondition = {
-  not?: boolean;
-  operator: Operator;
-  fieldsOrParams: [string, string];
+  field: string;
+  expression: FiledExpression;
 }
 
-export type RawCondition = {
-  rawString: string;
-}
+export type ComposeType = 'and' | 'or';
 
 export type ComposeCondition = {
-  type: 'and' | 'or';
-  conditions: (FieldCondition|RawCondition|ComposeCondition)[];
+  type: ComposeType;
+  conditions: (FieldCondition|ComposeCondition)[];
 }
 
-export type Condition = ComposeCondition | FieldCondition | RawCondition;
-
-export function stringToCondition(condition: string): FieldCondition | RawCondition {
-  if (conditonRegexp.test(condition)) {
-    const matches = condition.match(conditonRegexp);
-    if (matches && matches.length > 2) {
-      const not = matches[1];
-      const op = matches[2] as Operator;
-      const fields = condition.split(`${not ? not : ''} ${op}`).map(f => f.trim());
-      return {
-        not: !!not,
-        operator: op,
-        fieldsOrParams: [fields[0], fields[1]]
-      };
-    }
-  }
-  return {
-    rawString: condition
-  };
-}
-
-export function objectToCondition(object: {[key: string]: any}): {
-  condition: ComposeCondition,
-  params?: {[key:string]: any}
-} {
-  const params: {[key:string]: any} = {};
-  const conditions = Object.keys(object).map((field) => {
-    const value = object[field];
-    params[field] = value;
-    return {
-      fieldsOrParams: [field, `:${field}`],
-      operator: isArray(value) ? 'in' : '='
-    } as FieldCondition
-  });
-  return {
-    condition: {
-      type: 'and',
-      conditions,
-    },
-    params
-  }
-}
+export type Condition = ComposeCondition | FieldCondition;
 
 export function isConditionType(target: any): target is Condition {
-  if (!isObject(target)) {
-    return false;
-  }
-  if ('rawString' in target) {
-    return true;
-  }
-  if ('type' in target && 'conditions' in target) {
-    return true;
-  }
-  if ('operator' in target && 'fieldsOrParams' in target) {
-    return true;
-  }
-  return false;
-}
+  return ('field' in target && 'expression' in target) || ('type' in target && 'condition' in target);
+} 
 
-export type ComposeConditionFunc = (...sqls: ConditionExpression[]) => ComposeCondition;
-
-export type ConditionExpression = string | Condition;
-
-export function raw(sql: string): RawCondition {
-  return {
-    rawString: sql
-  }
+export type ObjectConditionType<T> = {
+  [key in keyof T]?: ConditionType<T[key]>
+} & {
+  and?: ObjectConditionType<T>;
+  or?: ObjectConditionType<T>;
 };
 
-export function and(...sqls: ConditionExpression[]): ComposeCondition {
-  const cond: ComposeCondition = {
-    type: 'and',
-    conditions: []
-  }
-  for (const exp of sqls) {
-    if (isConditionType(exp)) {
-      cond.conditions.push(exp);
-    } else {
-      cond.conditions.push(stringToCondition(exp));
+export type ConditionType<T> = T extends BasicDataType ? T | T[] | FiledExpression: ObjectConditionType<T>;
+
+export function objectToCondition<T>(object: ObjectConditionType<T>, type: ComposeType = 'and' ): ComposeCondition {
+  const conditions = Object.keys(object).map((field) => {
+    const value = get(object, field);
+    if (field === 'and' || field === 'or') {
+      if (!isPlainObject(value)) {
+        throw new Error('Wrong Composed Condition Types');
+      }
+      return objectToCondition(value, field);
     }
+    return <FieldCondition>{
+      field,
+      expression: value
+    };
+  });
+  return {
+    type,
+    conditions,
   }
-  return cond;
 }
 
-export function or(...sqls: ConditionExpression[]): ComposeCondition {
-  const cond: ComposeCondition = {
-    type: 'or',
-    conditions: []
-  }
-  for (const exp of sqls) {
-    if (isConditionType(exp)) {
-      cond.conditions.push(exp);
-    } else {
-      cond.conditions.push(stringToCondition(exp));
-    }
-  }
-  return cond;
-}
+export const GT = (value: FiledExpression): FiledExpression => ({
+  operator: '>',
+  value
+});
+
+export const GTE = (value: FiledExpression): FiledExpression => ({
+  operator: '>=',
+  value
+});
+
+export const LT = (value: FiledExpression): FiledExpression => ({
+  operator: '<',
+  value
+});
+
+export const LTE = (value: FiledExpression): FiledExpression => ({
+  operator: '<=',
+  value
+});
+
+export const EQ = (value: FiledExpression): FiledExpression => ({
+  operator: '=',
+  value
+});
+
+export const IN = (value: FiledExpression): FiledExpression => ({
+  operator: 'in',
+  value
+});
+
+export const NEQ = (value: FiledExpression): FiledExpression => ({
+  operator: '<>',
+  value
+});
+
+export const BETWEEN = (value: FiledExpression): FiledExpression => ({
+  operator: '<>',
+  value
+});
+
+export const LIKE = (value: FiledExpression): FiledExpression => ({
+  operator: 'like',
+  value
+});
+export const ILIKE = (value: FiledExpression): FiledExpression => ({
+  operator: 'ilike',
+  value
+});
