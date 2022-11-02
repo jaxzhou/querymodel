@@ -199,14 +199,11 @@ export default class SqlResolver {
     return converted;
   }
 
-  protected getFieldName(filed: string): string {
+  protected getSelection(filed: string): Selection | undefined {
     if (this.queryKeeper instanceof SelectQueryBuilder) {
-      const selection = this.queryKeeper.queryStorage.selections.find(s => s.alias === filed);
-      if (selection && 'content' in selection) {
-        return selection.content;
-      }
+      return this.queryKeeper.queryStorage.selections.find(s => s.alias === filed);
     }
-    return filed;
+    return;
   }
 
   protected resolveCondition(condition: FieldCondition, params: {[key:string]: any}): Knex.Raw {
@@ -214,7 +211,11 @@ export default class SqlResolver {
       field,
       expression
     } = condition;
-    const fieldName = this.getFieldName(field);
+    let fieldName = field;
+    const selection = this.getSelection(field);
+    if (selection) {
+      fieldName = this.convertSelection(selection);
+    }
     const expressionRaw = this.resolveConditionExpression(expression);
     const expressionSql = expressionRaw.toSQL();
     return this.knex.raw(`${fieldName} ${expressionSql.sql}`, expressionSql.bindings);
@@ -311,7 +312,7 @@ export default class SqlResolver {
       }
       return;
     }
-    const raw = this.resolveCondition(condition, select.queryStorage.params);
+    const raw = this.resolveCondition(condition, select.queryStorage.params)
     try {
       const {sql, bindings} = raw.toSQL();
       if (/^(cout|sum|min|max|avg)\((.*)\)/i.test(sql)) {

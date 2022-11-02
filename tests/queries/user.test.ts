@@ -53,5 +53,11 @@ describe('User', () => {
       await mySql.getOne(User, { firstName: 'lastName' });
       expect(query).toBeCalledWith('select id as id, first_name as firstName, last_name as lastName, age as age from `user` as `user` where first_name = last_name', [])
     });
+
+    it('condition - Multi Fields', async () => {
+      const query = jest.spyOn(sqlClient, 'query');
+      await mySql.getOne(User, { firstName: ['john', 'smith'], age: BETWEEN(18, 60) });
+      expect(query).toBeCalledWith('select id as id, first_name as firstName, last_name as lastName, age as age from `user` as `user` where first_name IN (?,?) and age between ? and ?', ['john', 'smith', 18, 60])
+    });
   })
 })

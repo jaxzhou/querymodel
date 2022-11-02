@@ -12,7 +12,7 @@ export class User {
   @Column('last_name')
   lastName: string;
 
-  @Select(concat('fist_name', 'last_name'))
+  @Select(concat('fist_name', '\' \'', 'last_name'))
   fullName: string;
 
   @Column()
