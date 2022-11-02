@@ -107,16 +107,16 @@ export const NEQ = (value: FiledExpression): FiledExpression => ({
   value
 });
 
-export const BETWEEN = (value: FiledExpression): FiledExpression => ({
-  operator: '<>',
-  value
+export const BETWEEN = (value1: number | Date, value2: number | Date): FiledExpression => ({
+  operator: 'between',
+  value: [value1, value2]
 });
 
-export const LIKE = (value: FiledExpression): FiledExpression => ({
+export const LIKE = (value: string): FiledExpression => ({
   operator: 'like',
   value
 });
-export const ILIKE = (value: FiledExpression): FiledExpression => ({
+export const ILIKE = (value: string): FiledExpression => ({
   operator: 'ilike',
   value
 });

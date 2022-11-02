@@ -1,8 +1,8 @@
 import knex, {Knex} from "knex";
 import { get, isArray, isNumber, isPlainObject, isString } from 'lodash';
 import SqlTypeMapping from './sql_type_mapping';
-import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder, WriterBuilder } from "../querybuilder";
-import { Condition, FieldCondition, JoinType, Table, Selection, isBasicDataType, FiledExpression } from "../schema";
+import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, SubQuery, UpdateQueryBuilder, WriterBuilder } from "../querybuilder";
+import { Condition, FieldCondition, JoinType, Table, Selection, isBasicDataType, FiledExpression, fieldRegex } from "../schema";
 
 function getFullTableName(table: Table): string {
   return table.schema ? `${table.schema}.${table.name}` : table.name;
@@ -199,18 +199,39 @@ export default class SqlResolver {
     return converted;
   }
 
+  protected getFieldName(filed: string): string {
+    if (this.queryKeeper instanceof SelectQueryBuilder) {
+      const selection = this.queryKeeper.queryStorage.selections.find(s => s.alias === filed);
+      if (selection && 'content' in selection) {
+        return selection.content;
+      }
+    }
+    return filed;
+  }
+
   protected resolveCondition(condition: FieldCondition, params: {[key:string]: any}): Knex.Raw {
     const {
       field,
       expression
     } = condition;
+    const fieldName = this.getFieldName(field);
     const expressionRaw = this.resolveConditionExpression(expression);
     const expressionSql = expressionRaw.toSQL();
-    return this.knex.raw(`${field} ${expressionSql.sql}`, expressionSql.bindings);
+    return this.knex.raw(`${fieldName} ${expressionSql.sql}`, expressionSql.bindings);
   }
 
   protected resolveConditionExpression(expression: FiledExpression): Knex.Raw {
     if (isBasicDataType(expression)) {
+      if (isString(expression) && this.queryKeeper instanceof SelectQueryBuilder) {
+        const selection = this.queryKeeper.queryStorage.selections.find(s => s.alias === expression);
+        if (selection) {
+          const converted = this.convertSelection(selection)
+          return this.knex.raw(`= ${converted}`)
+        }
+        if (fieldRegex.test(expression)) {
+          return this.knex.raw(`= ${expression}`)
+        }
+      }
       return this.knex.raw(`= :value`, {value: expression});
     }
     if (isArray(expression)) {
@@ -221,9 +242,16 @@ export default class SqlResolver {
       return this.knex.raw(rawSql, expression);
     }
     const {operator, value} = expression;
-    const subRaw = this.resolveConditionExpression(value);
-    const subSql = subRaw.toSQL();
-    return this.knex.raw(`${operator} ${subSql.sql}`, subSql.bindings);
+    if (isBasicDataType(value)) {
+      return this.knex.raw(`${operator} :value`, { value });
+    } else {
+      if (operator === 'between' && isArray(value)) {
+        return this.knex.raw(`${operator} ${value.map(_ => '?').join(' and ')}`, value);
+      }
+      const subRaw = this.resolveConditionExpression(value);
+      const subSql = subRaw.toSQL();
+      return this.knex.raw(`${operator} ${subSql.sql}`, subSql.bindings);
+    }
   }
 
   protected resolveSelections(select: SelectQueryBuilder) {

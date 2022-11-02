@@ -1,4 +1,4 @@
-import { assignIn, clone, find, isArray, isPlainObject, isString } from "lodash";
+import { assignIn, clone, cond, find, isArray, isPlainObject, isString } from "lodash";
 import { QueryStorage } from "./storage";
 import {
   ColumnSelection,
@@ -11,6 +11,7 @@ import {
   ObjectConditionType,
   objectToCondition,
   isConditionType,
+  isBasicDataType,
 } from "../schema";
 import { getTableDefinition } from "../decorators/entity";
 import { getQueryDefinition } from "../decorators/query";
@@ -171,14 +172,22 @@ export class SelectQueryBuilder {
       if (!this.queryStorage.conditions.conditions.length && 'type' in condition) {
         this.queryStorage.conditions = condition;
       } else {
-        this.queryStorage.conditions.conditions.push(condition);
+        if ('type' in condition) {
+          this.queryStorage.conditions.conditions.push(condition);
+        } else {
+          const sub = this.subQueries.find((s) => s.alias === condition.field);
+          if (sub && !isBasicDataType(condition.expression)) {
+            sub.subBuilder.where(condition.expression);
+          } else {
+            this.queryStorage.conditions.conditions.push(condition);
+          }
+        }
       }
     } else {
-      if (!this.queryStorage.conditions.conditions.length) {
-        this.queryStorage.conditions = objectToCondition(condition);
-      } else {
-        this.queryStorage.conditions.conditions.push(objectToCondition(condition));
-      }
+      const conditionList = objectToCondition(condition);
+      conditionList.conditions.forEach((c) => {
+        this.where(c);
+      });
     }
     return this;
   }

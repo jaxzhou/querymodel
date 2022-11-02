@@ -1,6 +1,6 @@
 
 export const aggRegex = /(min|max|avg|count|sum)\((.*)\)/i;
-export const fieldRegex = /^\w+[.]?\w+$/i;
+export const fieldRegex = /^\w+[.]\w+$/i;
 export type aggFunc = 'min'|'max'|'count'|'sum'|'avg';
 
 export type ColumnSelection = {
