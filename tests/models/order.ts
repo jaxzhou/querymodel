@@ -1,8 +1,8 @@
 import {Column, Entity} from '../../src/decorators'
 import { BasicModel } from './basic';
 
-@Entity('project')
-export class Project extends BasicModel {
+@Entity('order')
+export class Order extends BasicModel {
   @Column()
   id: number;
 
@@ -11,4 +11,8 @@ export class Project extends BasicModel {
 
   @Column('type')
   type: string;
+
+  @Column('price')
+  price: number;
+
 }

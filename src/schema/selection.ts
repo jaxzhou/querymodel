@@ -50,6 +50,8 @@ export const max = (param: FuncParamType): FuncSelection => convertToSelection('
 
 export const avg = (param: FuncParamType): FuncSelection => convertToSelection('avg', param);
 
+export const coalesce = (...params: FuncParamType[]): FuncSelection => convertToSelection('coalesce', ...params);
+
 export const distinct = (...params: FuncParamType[]): FuncSelection => convertToSelection('distinct', ...params);
 
 export const count_if = (param: FuncParamType): FuncSelection => convertToSelection('count_if', param);
