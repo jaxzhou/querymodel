@@ -59,5 +59,17 @@ describe('User', () => {
       await mySql.getOne(User, { firstName: ['john', 'smith'], age: BETWEEN(18, 60) });
       expect(query).toBeCalledWith('select id as id, first_name as firstName, last_name as lastName, age as age from `user` as `user` where first_name IN (?,?) and age between ? and ?', ['john', 'smith', 18, 60])
     });
+
+    it('count', async () => {
+      const query = jest.spyOn(sqlClient, 'query');
+      await mySql.getCount(User, {});
+      expect(query).toBeCalledWith('select count(*) as count from `user` as `user`', [])
+    });
+
+    it('count - with condition', async () => {
+      const query = jest.spyOn(sqlClient, 'query');
+      await mySql.getCount(User, { age: BETWEEN(18, 40) });
+      expect(query).toBeCalledWith('select count(*) as count from `user` as `user` where age between ? and ?', [18, 40])
+    });
   })
 })

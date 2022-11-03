@@ -1,4 +1,5 @@
 import { plainToInstance } from 'class-transformer';
+import { get, isString } from 'lodash';
 import { ClassType, QueryCondition, QueryExpression, UpdateObject } from "./types";
 import { ExecuteResult, IQueryRunner } from "./query_runner";
 import { getTableDefinition } from "../decorators/entity";
@@ -6,7 +7,6 @@ import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, UpdateQuery
 import { getColumnDefinitions } from "../decorators/column";
 import { getSelectionDefinitions } from "../decorators/selection";
 import { getQueryDefinition } from "../decorators/query";
-import { get, isString } from 'lodash';
 import { count } from '../schema';
 
 export abstract class DataSource {
