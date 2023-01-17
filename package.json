@@ -1,12 +1,13 @@
 {
   "name": "querymodel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "jest --config ./.jest.config.js --forceExit tests/"
+    "test": "jest --config ./.jest.config.js --forceExit tests/",
+    "prepublish": "tsc"
   },
   "devDependencies": {
     "@types/jest": "^27.4.1",
