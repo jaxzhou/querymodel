@@ -18,6 +18,8 @@ So if we need to defined the return data, why not just defined the query with it
 
 ### HOW TO USE
 
+#### Defined The Model With Query
+
 - We could use querymodel like ORM to defined the simple query of a table
 
 ```typescript
@@ -101,6 +103,42 @@ export class OrderWithStatus {
 that a commmon sence that we need to join two or more tabel to fetch the data back in one sql. Use ```Query``` decorator to defined how the data composed, and use ```Select``` to defined how the fields to be computed.
 
 Also The *from* and *join* would be a simpel table or a defined query. Then you could defined the common query would be used in multi query and resue it in the defination of multi query models.
+
+#### Query With DataSource
+
+- First add the datasource.
+
+```
+export class MySql extends DataSource {
+  constructor() {
+    super();
+    this.sourceType = 'MySql';
+    this.runner = new SqlRunner();
+  }
+}
+```
+
+- Implement the Runner
+
+```
+export class SqlRunner implements IQueryRunner {
+  query<T>(builder: SelectQueryBuilder): Promise<T[]> {
+    //the select query executed here
+  }
+
+  execute(builder: DeleteQueryBuilder|InsertQueryBuilder|UpdateQueryBuilder): Promise<ExecuteResult> {
+    // delete, insert, update query executed here
+  }
+}
+```
+
+- Add your bussiness query code
+
+```
+const source = new MySql();
+const user = await source.getOne(User);
+const orders = await source.getMany(OrderWithStatus, {status: IN('waiting', 'paying'), userId: user.id});
+```
 
 ### EXAMPLES
 
