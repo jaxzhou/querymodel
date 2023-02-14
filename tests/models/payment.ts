@@ -12,8 +12,11 @@ export class Payment extends BasicModel {
   user_id: number;
 
   @Column('total_paied')
-  total_paied: number;
+  totalPaied: number;
 
   @Column('status')
   status: PaymentStatus;
+  
+  @Column('paied_time')
+  paiedTime: Date;
 }
